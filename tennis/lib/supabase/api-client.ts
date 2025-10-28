@@ -29,17 +29,30 @@ export function getServerSupabase() {
  */
 export function handleApiError(error: unknown, fallbackMessage = 'An error occurred') {
   console.error('API Error:', error);
-  
+
   if (error instanceof Error) {
     return {
+      success: false,
       error: error.message,
-      details: error.stack
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     };
   }
-  
+
   return {
+    success: false,
     error: fallbackMessage,
-    details: String(error)
+    details: process.env.NODE_ENV === 'development' ? String(error) : undefined
+  };
+}
+
+/**
+ * Helper to create successful API responses
+ */
+export function handleApiSuccess<T>(data: T, message?: string): ApiSuccessResponse<T> {
+  return {
+    success: true,
+    data,
+    message
   };
 }
 
