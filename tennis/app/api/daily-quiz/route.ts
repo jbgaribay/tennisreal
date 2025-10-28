@@ -186,10 +186,16 @@ async function generateDailyCategories(seed: number, debug: boolean = false) {
     .filter(([_, count]) => count >= 3)
     .map(([country]) => country);
 
-  // Get tournaments by level
-  const grandSlams = tournamentsResult.data?.filter(t => t.level === 'grand_slam') || [];
-  const masters = tournamentsResult.data?.filter(t => t.level === 'atp_masters_1000') || [];
-  const atp500s = tournamentsResult.data?.filter(t => t.level === 'atp_500') || [];
+  // Get tournaments by level (EXCLUDE WTA tournaments to avoid impossible combinations)
+  const grandSlams = tournamentsResult.data?.filter(t =>
+    t.level === 'grand_slam' && !t.short_name.includes('WTA') && !t.name?.includes('WTA')
+  ) || [];
+  const masters = tournamentsResult.data?.filter(t =>
+    t.level === 'atp_masters_1000' && !t.short_name.includes('WTA') && !t.name?.includes('WTA')
+  ) || [];
+  const atp500s = tournamentsResult.data?.filter(t =>
+    t.level === 'atp_500' && !t.short_name.includes('WTA') && !t.name?.includes('WTA')
+  ) || [];
 
   // Get unique achievements
   const uniqueAchievements = [...new Set(
