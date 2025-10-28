@@ -18,17 +18,11 @@ export default async function ProtectedPage() {
         </p>
         
         <div className="flex gap-4 justify-center">
-          <a 
-            href="/" 
+          <a
+            href="/"
             className="bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-3 rounded-md font-medium transition-colors"
           >
             Play Today's Grid
-          </a>
-          <a 
-            href="/stats" 
-            className="border border-input bg-background hover:bg-accent hover:text-accent-foreground px-6 py-3 rounded-md font-medium transition-colors"
-          >
-            View Stats
           </a>
         </div>
       </div>

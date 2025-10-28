@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSupabase, handleApiError } from '@/lib/supabase/api-client';
 import type { Category } from '@/lib/types';
+import { validateCategory, getCountryName, formatAchievementLabel } from '@/lib/validation';
 
 interface DailyQuiz {
   rows: Category[];
@@ -416,66 +417,3 @@ async function checkCellHasSolution(rowCategory: Category, colCategory: Category
   }
 }
 
-async function validateCategory(player: any, category: Category): Promise<boolean> {
-  try {
-    switch (category.type) {
-      case 'country':
-        return player.nationality === category.value;
-      
-      case 'tournament':
-        return player.player_achievements?.some((a: any) => 
-          a.tournaments?.short_name === category.value && a.result === 'winner'
-        ) || false;
-      
-      case 'era':
-        return validateEra(player, category.value);
-      
-      case 'style':
-        return player.plays_hand === category.value;
-      
-      case 'ranking':
-        if (category.value === 'world_no1') {
-          return player.player_rankings?.some((r: any) => r.singles_ranking === 1) || false;
-        }
-        if (category.value === 'top10') {
-          return player.player_rankings?.some((r: any) => r.singles_ranking <= 10) || false;
-        }
-        return false;
-      
-      case 'achievement':
-        return player.player_achievements?.some((a: any) => a.achievement_type === category.value) || false;
-      
-      default:
-        return false;
-    }
-  } catch {
-    return false;
-  }
-}
-
-function validateEra(player: any, era: string): boolean {
-  const turnedPro = player.turned_pro || 1990;
-  const retired = player.retired || new Date().getFullYear();
-  
-  switch (era) {
-    case '2020s': return retired >= 2020;
-    case '2010s': return turnedPro <= 2019 && retired >= 2010;
-    case '2000s': return turnedPro <= 2009 && retired >= 2000;
-    case '1990s': return turnedPro <= 1999 && retired >= 1990;
-    default: return false;
-  }
-}
-
-function getCountryName(code: string): string {
-  const names: Record<string, string> = {
-    'USA': 'USA', 'ESP': 'Spain', 'SRB': 'Serbia', 'SUI': 'Switzerland',
-    'GBR': 'Great Britain', 'FRA': 'France', 'GER': 'Germany', 'AUS': 'Australia',
-    'ITA': 'Italy', 'ARG': 'Argentina', 'RUS': 'Russia', 'CAN': 'Canada',
-    'CRO': 'Croatia', 'AUT': 'Austria', 'BEL': 'Belgium', 'NED': 'Netherlands'
-  };
-  return names[code] || code;
-}
-
-function formatAchievementLabel(achievement: string): string {
-  return achievement.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-}
