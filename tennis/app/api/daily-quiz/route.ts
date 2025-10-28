@@ -40,7 +40,40 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      console.log(`❌ Cache MISS - generating new quiz`);
+      console.log(`❌ Cache MISS - checking for manual quiz...`);
+    }
+
+    // MANUAL QUIZ CHECK: See if there's a published manual quiz for this date
+    if (!testMode) {
+      const manualQuiz = await getManualQuizForDate(today);
+
+      if (manualQuiz) {
+        console.log(`📝 Manual quiz found: "${manualQuiz.title}"`);
+
+        const quizData = {
+          success: true,
+          date: today,
+          source: 'manual',
+          title: manualQuiz.title,
+          description: manualQuiz.description,
+          difficulty: manualQuiz.difficulty,
+          categories: {
+            rows: manualQuiz.row_categories,
+            columns: manualQuiz.col_categories
+          },
+          message: `Manual quiz: ${manualQuiz.title}`
+        };
+
+        // Cache the manual quiz
+        if (!bypassCache) {
+          await cacheQuiz(today, 'manual', quizData, manualQuiz.id);
+          console.log(`💾 Manual quiz cached for ${today}`);
+        }
+
+        return NextResponse.json(quizData);
+      }
+
+      console.log(`📊 No manual quiz found - generating algorithmic quiz`);
     }
 
     console.log(`\n🎾 Generating daily quiz for ${today} (base seed: ${dateNumber})`);
@@ -512,6 +545,29 @@ async function cacheQuiz(
     }
   } catch (error) {
     console.error('Error caching quiz:', error);
+  }
+}
+
+/**
+ * Retrieves a published manual quiz for the specified date
+ */
+async function getManualQuizForDate(date: string): Promise<any | null> {
+  try {
+    const { data, error } = await supabase
+      .from('quiz_templates')
+      .select('*')
+      .eq('scheduled_date', date)
+      .eq('is_published', true)
+      .single();
+
+    if (error || !data) {
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error fetching manual quiz:', error);
+    return null;
   }
 }
 
