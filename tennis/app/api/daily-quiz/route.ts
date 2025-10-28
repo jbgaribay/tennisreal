@@ -18,11 +18,29 @@ export async function GET(request: NextRequest) {
     const testMode = searchParams.get('t');
     const debugMode = searchParams.get('debug');
     const skipValidation = searchParams.get('skipValidation') === 'true';
-    
+    const bypassCache = searchParams.get('bypassCache') === 'true'; // For admin testing
+
     let dateNumber = parseInt(today.replace(/-/g, ''));
     if (testMode) {
       const timeVariation = Math.floor(parseInt(testMode) / 1000) % 50000;
       dateNumber = dateNumber + timeVariation;
+    }
+
+    // CACHING LAYER: Check if we have a valid cached quiz for today
+    if (!bypassCache && !testMode) {
+      console.log(`🔍 Checking cache for ${today}...`);
+      const cachedQuiz = await getCachedQuiz(today);
+
+      if (cachedQuiz) {
+        console.log(`✅ Cache HIT! Returning cached quiz (generated at ${cachedQuiz.generated_at})`);
+        return NextResponse.json({
+          ...cachedQuiz.quiz_data,
+          cached: true,
+          generatedAt: cachedQuiz.generated_at
+        });
+      }
+
+      console.log(`❌ Cache MISS - generating new quiz`);
     }
 
     console.log(`\n🎾 Generating daily quiz for ${today} (base seed: ${dateNumber})`);
@@ -77,7 +95,7 @@ export async function GET(request: NextRequest) {
 
     console.log(`\n🎉 Valid quiz generated on attempt ${attempts}!`);
 
-    return NextResponse.json({
+    const quizResponse = {
       success: true,
       date: today,
       categories: quiz!.categories,
@@ -85,7 +103,15 @@ export async function GET(request: NextRequest) {
       attempts,
       debug: quiz!.debug,
       message: `Daily quiz generated for ${today}`
-    });
+    };
+
+    // Cache the successfully generated quiz (unless in test mode)
+    if (!testMode && !bypassCache) {
+      await cacheQuiz(today, 'algorithmic', quizResponse);
+      console.log(`💾 Quiz cached for ${today}`);
+    }
+
+    return NextResponse.json(quizResponse);
 
   } catch (error) {
     console.error('Daily quiz generation error:', error);
@@ -414,6 +440,78 @@ async function checkCellHasSolution(rowCategory: Category, colCategory: Category
     return false;
   } catch {
     return true; // Fail open
+  }
+}
+
+// =============================================================================
+// CACHING FUNCTIONS
+// =============================================================================
+
+interface CachedQuiz {
+  id: string;
+  date: string;
+  quiz_source: 'manual' | 'algorithmic';
+  quiz_template_id: string | null;
+  quiz_data: any;
+  generated_at: string;
+  expires_at: string;
+}
+
+/**
+ * Retrieves a cached quiz for the specified date if it exists and hasn't expired
+ */
+async function getCachedQuiz(date: string): Promise<CachedQuiz | null> {
+  try {
+    const { data, error } = await supabase
+      .from('cached_daily_quizzes')
+      .select('*')
+      .eq('date', date)
+      .gt('expires_at', new Date().toISOString())
+      .single();
+
+    if (error || !data) {
+      return null;
+    }
+
+    return data as CachedQuiz;
+  } catch (error) {
+    console.error('Error fetching cached quiz:', error);
+    return null;
+  }
+}
+
+/**
+ * Caches a quiz for 24 hours
+ */
+async function cacheQuiz(
+  date: string,
+  source: 'manual' | 'algorithmic',
+  quizData: any,
+  templateId: string | null = null
+): Promise<void> {
+  try {
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 24);
+
+    // Upsert: Insert or update if date already exists
+    const { error } = await supabase
+      .from('cached_daily_quizzes')
+      .upsert({
+        date,
+        quiz_source: source,
+        quiz_template_id: templateId,
+        quiz_data: quizData,
+        generated_at: new Date().toISOString(),
+        expires_at: expiresAt.toISOString()
+      }, {
+        onConflict: 'date'
+      });
+
+    if (error) {
+      console.error('Error caching quiz:', error);
+    }
+  } catch (error) {
+    console.error('Error caching quiz:', error);
   }
 }
 
