@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -11,6 +12,7 @@ interface DatabaseStats {
 }
 
 export default function AdminPanel() {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState<DatabaseStats | null>(null);
   const [message, setMessage] = useState('');
@@ -206,6 +208,13 @@ ${achievementsData.achievements > 100 ? '✅' : '⚠️'} Achievements ${achieve
           <CardTitle>🛠️ Admin Actions</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
+          <Button
+            onClick={() => router.push('/admin/quiz-creator')}
+            className="w-full"
+          >
+            ✨ Create Manual Quiz
+          </Button>
+
           <Button
             onClick={checkDatabaseHealth}
             disabled={loading}
