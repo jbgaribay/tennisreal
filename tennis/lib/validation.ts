@@ -31,7 +31,7 @@ export async function validateCategory(player: any, category: Category): Promise
         return validateAchievementFromData(player, category.value);
 
       default:
-        console.log(`❓ Unknown category type: ${category.type}`);
+        console.warn(`❓ Unknown category type: ${category.type}`);
         return false;
     }
   } catch (error) {
